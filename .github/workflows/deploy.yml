@@ -21,21 +21,30 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
+      # 🔥 FIX: kein frozen-lockfile (weil du evtl. keinen lock hast)
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build plugin(s)
         run: node ./build.mjs
 
-      - name: Debug dist (before copy)
-        run: ls -R
-
       - name: Ensure dist exists
         run: mkdir -p dist
 
-      # 🔥 IMPORTANT: copy manifest from template → dist
-      - name: Copy manifest
-        run: cp template/manifest.json dist/manifest.json
+      # 🔥 FIX: manifest sicher kopieren (sonst Crash vermeiden)
+      - name: Copy manifest (fallback-safe)
+        run: |
+          if [ -f template/manifest.json ]; then
+            cp template/manifest.json dist/manifest.json
+          elif [ -f manifest.json ]; then
+            cp manifest.json dist/manifest.json
+          else
+            echo "ERROR: manifest.json not found"
+            exit 1
+          fi
+
+      - name: Debug dist
+        run: ls -R dist
 
       - name: Copy additional files
         run: |
@@ -44,9 +53,6 @@ jobs:
           printf -- "---\npermalink: /404.html\n---\n" > dist/404.md
           printf -- "> 404 fallback page\n\n" >> dist/404.md
           cat README.md >> dist/404.md
-
-      - name: Debug dist (after copy)
-        run: ls -R dist
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
